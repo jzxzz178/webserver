@@ -1,5 +1,6 @@
 import socket
 import threading
+from http_parser import HttpParser
 
 
 class Server(threading.Thread):
@@ -8,6 +9,7 @@ class Server(threading.Thread):
         self.host = host
         self.port = port
         self.name = name
+        self.parser = HttpParser()
         print(f'{name} started')
 
     def run(self):
@@ -25,7 +27,22 @@ class Server(threading.Thread):
                 if not data:
                     print('Клиент отключился')
                     break
-                client_sock.sendall(data + bytes('; Who are you?', 'utf-8'))
+                try:
+                    self.serve_client(client_sock, client_addr)
+                except Exception as e:
+                    # client_sock.sendall(bytes(e))
+                    print(e)
 
         finally:
             server_socket.close()
+
+    def serve_client(self, conn, addr):
+        try:
+            print(f'Started serve client {addr}')
+            req = self.parser.parse_request(conn)
+            resp = self.parser.handle_request(req)
+            self.parser.send_response(conn, resp)
+        except ConnectionResetError:
+            conn = None
+        except Exception as e:
+            self.parser.send_error(conn, e)
