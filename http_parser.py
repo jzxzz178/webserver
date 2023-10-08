@@ -82,44 +82,31 @@ class HttpParser:
             return
         if request.method == 'GET':
             file = self.read_bytes_from_file(path)
-            r = self.send_ok_response(file)
+            r = self.send_response(Response(200, 'OK', body=file))
 
-    def send_response(self, response, body=None):
+    def send_response(self, response):
         logger.debug(f'{response.status}: {response.reason}')
-        status_line = bytes(f'HTTP/1.1 {response.status} {response.reason}')
-        r = status_line
-        if body:
-            r = status_line + b'\r\n' + body
-        self.client_socket.sendall(r.encode('iso-8859-1'))
+        status_line = bytes(f'HTTP/1.1 {response.status} {response.reason}', 'iso-8859-1')
+        r = status_line + b'\r\n'
+        hdrs = b''
+        if response.headers:
+            for k, v in response.headers:
+                header_line = f'{k}: {v}\r\n'
+                hdrs += (header_line.encode('iso-8859-1'))
+        hdrs += b'\r\n'
+        r += hdrs
+        if response.body:
+            r += response.body
+        self.client_socket.sendall(r)
         return r
 
         # wfile = self.client_socket.makefile('wb')
         # wfile.write(status_line.encode('iso-8859-1'))
-
-        # if response.headers:
-        #     for k, v in response.headers:
-        #         header_line = f'{k}: {v}\r\n'
-        #         wfile.write(header_line.encode('iso-8859-1'))
-        # wfile.write(b'\r\n')
         # if response.body:
         #     wfile.write(response.body)
         #
         # wfile.flush()
         # wfile.close()
-
-    def send_ok_response(self, body=None):
-        logger.debug(f'{200}: OK')
-        status_line = b'HTTP/1.1 200 OK'
-        r = status_line
-        if body:
-            r = status_line + b'\r\n' + body
-        self.client_socket.sendall(r)
-        # wfile = self.client_socket.makefile('wb')
-        # self.client_socket.send(status_line.encode('iso-8859-1'))
-        # wfile.write(status_line.encode('iso-8859-1'))
-        # wfile.flush()
-        # wfile.close()
-        return r
 
     def send_error(self, error: Response, e=None):
         if e:
