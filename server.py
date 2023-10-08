@@ -14,10 +14,6 @@ class Server(threading.Thread):
         self.port = port
         self.service_name = service_name
         self.service_path = service_path
-
-        # TODO: СДЕЛАТЬ ПОТОКОБЕЗОПАСНЫМ
-        # self.parser = HttpParser(service_name, port, service_path)
-
         logger.debug(f'service {service_name} started and handling on {self.host}:{self.port}')
 
     def run(self):

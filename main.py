@@ -1,3 +1,4 @@
+import configparser
 import sys
 
 from server import Server
@@ -24,7 +25,11 @@ init_logger("app")
 logger = logging.getLogger("app.main")
 
 if __name__ == '__main__':
-    s = Server('127.0.0.1', 53210, 'sourse1.com', '/web_site1')
-    s.start()
-
-    # TODO: чтобы создавалось столько серверов, сколько портов в конфиге
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    for name in config.sections():
+        server = Server(config[name]['host'],
+                        int(config[name]['port']),
+                        config[name]['service_name'],
+                        config[name]['service_path'])
+        server.start()

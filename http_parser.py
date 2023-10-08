@@ -58,16 +58,13 @@ class HttpParser:
         return Parser().parsestr(sheaders)
 
     def parse_request_line(self, rfile: io.BufferedReader):
-        # print('Trying to readline')
-        raw = rfile.readline(MAX_LINE + 1)  # эффективно читаем строку целиком
-        # print('Read a line')
+        raw = rfile.readline(MAX_LINE + 1)
         if len(raw) > MAX_LINE:
             raise Exception('Request line is too long')
-        # print('trying to decode')
         req_line = str(raw, 'iso-8859-1')
         req_line = req_line.rstrip('\r\n')
-        words = req_line.split()  # разделяем по пробелу
-        if len(words) != 3:  # и ожидаем ровно 3 части
+        words = req_line.split()
+        if len(words) != 3:
             raise Exception('Malformed request line')
 
         method, target, ver = words
@@ -79,7 +76,6 @@ class HttpParser:
     def handle_request(self, request: Request):
         curr_dir = pathlib.Path.cwd()
         path = str(curr_dir).replace('\\', '/') + self.service_path + request.path
-        # print(f'{curr_dir}; {request.path}')
         logger.debug(f'Got path: {path}')
         if not os.path.exists(path) or not os.path.isfile(path):
             (self.send_response(Response(400, 'Bad request')))
@@ -138,7 +134,6 @@ class HttpParser:
             body = b'Internal Server Error'
         finally:
             response = Response(status, reason, [('Content-Length', len(body))], body)
-            # print(f'{response.status}: {response.reason}')
             self.send_response(response)
 
     @lru_cache(maxsize=30)
