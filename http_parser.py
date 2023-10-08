@@ -1,5 +1,7 @@
-from socket import socket
+import io
+import threading
 from email.parser import Parser
+from socket import socket
 
 import Request
 
@@ -8,21 +10,25 @@ MAX_HEADERS = 100
 
 
 class HttpParser:
-    def __init__(self, server_name, port):
-        self._port = port
-        self._server_name = server_name
+    def __init__(self, service_name, service_port, service_path):
+        self.service_port = service_name
+        self.service_name = service_port
+        self.service_path = service_path
 
     def parse_request(self, conn: socket):
         global MAX_LINE
+        print('started parsing')
         rfile = conn.makefile('rb')
+        print('got rfile')
         method, target, ver = self.parse_request_line(rfile)
+        print(f'{method} {target} {ver}')
         headers = self.parse_headers(rfile)
         host = headers.get('Host')
         if not host:
             raise Exception('Bad request')
 
-        if host not in (self._server_name,
-                        f'{self._server_name}:{self._port}'):
+        if host not in (self.service_port,
+                        f'{self.service_port}:{self.service_name}'):
             raise Exception('Not found')
 
         return Request(method, target, ver, rfile)
@@ -46,12 +52,15 @@ class HttpParser:
         sheaders = b''.join(headers).decode('iso-8859-1')
         return Parser().parsestr(sheaders)
 
-    def parse_request_line(self, rfile):
+    def parse_request_line(self, rfile: io.BufferedReader):
+        print('trying to readline')
         raw = rfile.readline(MAX_LINE + 1)  # эффективно читаем строку целиком
+        print('read a line')
         if len(raw) > MAX_LINE:
             raise Exception('Request line is too long')
-
-        req_line = str(raw, 'iso-8859-1')
+        print('trying to decode')
+        req_line = str(raw, 'iso-859-1')
+        print('finished decode raw line')
         req_line = req_line.rstrip('\r\n')
         words = req_line.split()  # разделяем по пробелу
         if len(words) != 3:  # и ожидаем ровно 3 части
@@ -63,7 +72,8 @@ class HttpParser:
 
         return method, target, ver
 
-    def handle_request(self, req):
+    def handle_request(self, request: Request):
+        print(request.path)
         pass  # TODO: implement me
 
     def send_response(self, conn, resp):
