@@ -1,6 +1,7 @@
 import socket
 import threading
 from http_parser import HttpParser
+from response import Response
 
 
 class Server(threading.Thread):
@@ -49,14 +50,17 @@ class Server(threading.Thread):
             server_socket.close()
 
     def serve_client(self, conn: socket, addr):
-        parser = HttpParser(self.service_name, self.port, self.service_path)
+        parser = HttpParser(self.service_name, self.port, self.service_path, conn)
         # parser.start()
         try:
             print(f'Started serving client {addr}')
-            request = parser.parse_request(conn)
+            request = parser.parse_request()
+            # print('Parsed incoming request')
             resp = parser.handle_request(request)
-            parser.send_response(conn, resp)
+            # parser.send_response(resp)
+            conn.close()
+            print(f'client {addr} served')
         except ConnectionResetError:
-            conn = None
+            conn.close()
         except Exception as e:
-            parser.send_error(conn, e)
+            parser.send_error(Response(400, 'Bad request'), e)
