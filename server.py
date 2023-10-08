@@ -26,10 +26,10 @@ class Server(threading.Thread):
             while True:
                 client_sock, client_addr = server_socket.accept()
                 print('Client', client_addr, f' connected to {self.service_name} on port {self.port}')
-                data = client_sock.recv(1024)
-                if not data:
-                    print('Клиент отключился')
-                    break
+                # data = client_sock.recv(1024)
+                # if not data:
+                #     print('Клиент отключился')
+                #     break
                 try:
                     # self.serve_client(client_sock, client_addr)
                     th = threading.Thread(target=self.serve_client,
@@ -41,6 +41,8 @@ class Server(threading.Thread):
                 except Exception as e:
                     # client_sock.sendall(bytes(e))
                     print(e)
+                # finally:
+                #     print('Клиент отключился')
 
         finally:
             print('finally part')

@@ -59,7 +59,7 @@ class HttpParser:
         if len(raw) > MAX_LINE:
             raise Exception('Request line is too long')
         print('trying to decode')
-        req_line = str(raw, 'iso-859-1')
+        req_line = str(raw, 'iso-8859-1')
         print('finished decode raw line')
         req_line = req_line.rstrip('\r\n')
         words = req_line.split()  # разделяем по пробелу
