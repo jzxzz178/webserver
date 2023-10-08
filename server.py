@@ -2,6 +2,9 @@ import socket
 import threading
 from http_parser import HttpParser
 from response import Response
+import logging
+
+logger = logging.getLogger('app.server')
 
 
 class Server(threading.Thread):
@@ -15,9 +18,10 @@ class Server(threading.Thread):
         # TODO: СДЕЛАТЬ ПОТОКОБЕЗОПАСНЫМ
         # self.parser = HttpParser(service_name, port, service_path)
 
-        print(f'service {service_name} started and handling on {self.host}:{self.port}')
+        logger.debug(f'service {service_name} started and handling on {self.host}:{self.port}')
 
     def run(self):
+        global client_addr
         server_socket = socket.socket(socket.AF_INET,
                                       socket.SOCK_STREAM,
                                       proto=0)
@@ -26,13 +30,8 @@ class Server(threading.Thread):
             server_socket.listen()
             while True:
                 client_sock, client_addr = server_socket.accept()
-                print('Client', client_addr, f' connected to {self.service_name} on port {self.port}')
-                # data = client_sock.recv(1024)
-                # if not data:
-                #     print('Клиент отключился')
-                #     break
+                logger.info(f'Client {client_addr} connected to {self.service_name} on port {self.port}')
                 try:
-                    # self.serve_client(client_sock, client_addr)
                     th = threading.Thread(target=self.serve_client,
                                           name=client_addr,
                                           args=(client_sock, client_addr),
@@ -40,26 +39,20 @@ class Server(threading.Thread):
                     th.start()
                     # th.join()
                 except Exception as e:
-                    # client_sock.sendall(bytes(e))
                     print(e)
-                # finally:
-                #     print('Клиент отключился')
 
         finally:
-            print('finally part')
+            logger.info(f'Client {client_addr} disconnected')
             server_socket.close()
 
     def serve_client(self, conn: socket, addr):
         parser = HttpParser(self.service_name, self.port, self.service_path, conn)
-        # parser.start()
         try:
-            print(f'Started serving client {addr}')
+            logger.debug(f'Started serving client {addr}')
             request = parser.parse_request()
-            # print('Parsed incoming request')
             resp = parser.handle_request(request)
-            # parser.send_response(resp)
             conn.close()
-            print(f'client {addr} served')
+            logger.debug(f'client {addr} served')
         except ConnectionResetError:
             conn.close()
         except Exception as e:

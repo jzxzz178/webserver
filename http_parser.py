@@ -4,12 +4,15 @@ import pathlib
 from email.parser import Parser
 from functools import lru_cache
 from socket import socket
+import logging
 
 from request import Request
 from response import Response
 
 MAX_LINE = 64 * 1024
 MAX_HEADERS = 100
+
+logger = logging.getLogger('app.http_parser')
 
 
 class HttpParser:
@@ -23,10 +26,10 @@ class HttpParser:
         global MAX_LINE
         rfile = self.client_socket.makefile('rb')
         method, target, ver = self.parse_request_line(rfile)
-        print(f'{method} {target} {ver}')
+        logger.debug(f'{method} {target} {ver}')
         headers = self.parse_headers(rfile)
         host = headers.get('Host')
-        print(f'Host: {host}')
+        logger.debug(f'Host: {host}')
         if not host:
             raise Exception('Bad request')
 
@@ -77,7 +80,7 @@ class HttpParser:
         curr_dir = pathlib.Path.cwd()
         path = str(curr_dir).replace('\\', '/') + self.service_path + request.path
         # print(f'{curr_dir}; {request.path}')
-        print(f'Got path: {path}')
+        logger.debug(f'Got path: {path}')
         if not os.path.exists(path) or not os.path.isfile(path):
             (self.send_response(Response(400, 'Bad request')))
             return
@@ -86,7 +89,7 @@ class HttpParser:
             r = self.send_ok_response(file)
 
     def send_response(self, response, body=None):
-        print(f'{response.status}: {response.reason}')
+        logger.debug(f'{response.status}: {response.reason}')
         status_line = bytes(f'HTTP/1.1 {response.status} {response.reason}')
         r = status_line
         if body:
@@ -109,7 +112,7 @@ class HttpParser:
         # wfile.close()
 
     def send_ok_response(self, body=None):
-        print(f'{200}: OK')
+        logger.debug(f'{200}: OK')
         status_line = b'HTTP/1.1 200 OK'
         r = status_line
         if body:
@@ -124,7 +127,7 @@ class HttpParser:
 
     def send_error(self, error: Response, e=None):
         if e:
-            print(e)
+            logger.warning(e)
         try:
             status = error.status
             reason = error.reason
