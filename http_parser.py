@@ -8,6 +8,10 @@ MAX_HEADERS = 100
 
 
 class HttpParser:
+    def __init__(self, server_name, port):
+        self._port = port
+        self._server_name = server_name
+
     def parse_request(self, conn: socket):
         global MAX_LINE
         rfile = conn.makefile('rb')
@@ -16,9 +20,11 @@ class HttpParser:
         host = headers.get('Host')
         if not host:
             raise Exception('Bad request')
+
         if host not in (self._server_name,
                         f'{self._server_name}:{self._port}'):
             raise Exception('Not found')
+
         return Request(method, target, ver, rfile)
 
     def parse_headers(self, rfile):

@@ -4,12 +4,12 @@ from http_parser import HttpParser
 
 
 class Server(threading.Thread):
-    def __init__(self, host, port, name):
+    def __init__(self, host: str, port: int, name: str):
         threading.Thread.__init__(self, name=name)
         self.host = host
         self.port = port
         self.name = name
-        self.parser = HttpParser()
+        self.parser = HttpParser(name, port)
         print(f'{name} started')
 
     def run(self):
