@@ -1,9 +1,10 @@
+import io
 from functools import lru_cache
 from urllib.parse import parse_qs, urlparse
 
 
 class Request:
-    def __init__(self, method, target, version, headers, rfile):
+    def __init__(self, method, target, version, headers, rfile: io.BufferedReader):
         self.method = method
         self.target = target
         self.version = version

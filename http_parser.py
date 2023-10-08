@@ -74,15 +74,33 @@ class HttpParser:
         return method, target, ver
 
     def handle_request(self, request: Request):
+        global file
         curr_dir = pathlib.Path.cwd()
         path = str(curr_dir).replace('\\', '/') + self.service_path + request.path
         logger.debug(f'Got path: {path}')
-        if not os.path.exists(path) or not os.path.isfile(path):
-            (self.send_response(Response(400, 'Bad request')))
-            return
+
         if request.method == 'GET':
+            if not os.path.exists(path) or not os.path.isfile(path):
+                (self.send_response(Response(400, 'Bad request')))
+                return
             file = self.read_bytes_from_file(path)
             r = self.send_response(Response(200, 'OK', body=file))
+
+        (self.send_response(Response(400, 'Bad request')))
+        # if request.method == 'POST':
+        #     if os.path.isfile(path):
+        #         (self.send_response(Response(400, 'Bad request', body=b'File with specified name already exists')))
+        #         return
+        #     try:
+        #         file = open(path, 'wb')
+        #         file.write(bytes(request.rfile.read()))
+        #         file.close()
+        #         r = self.send_response(Response(200, 'OK', body=file))
+        #     except Exception as e:
+        #         (self.send_error(Response(400, 'Bad request', body=bytes(f'{e}', 'iso-8859-1')), e))
+        #     finally:
+        #         file.close()
+
 
     def send_response(self, response):
         logger.debug(f'{response.status}: {response.reason}')
@@ -115,7 +133,7 @@ class HttpParser:
             status = error.status
             reason = error.reason
             body = error.body.encode('utf-8')
-        except:
+        except Exception as ex:
             status = 500
             reason = b'Internal Server Error'
             body = b'Internal Server Error'
