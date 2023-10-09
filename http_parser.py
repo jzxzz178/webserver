@@ -23,11 +23,7 @@ class HttpParser:
         self.client_addr = client_addr
 
     def parse_request(self):
-        # rfile = self.client_socket.makefile('rb')
         rfile = self.client_socket.recv(2048).decode('iso-8859-1')
-        # content = self.read_rfile_bytes(rfile).decode('iso-8859-1')
-        # logger.debug(self.client_socket.recv(2048))
-        # logger.debug(self.rfile_to_str(rfile))
 
         method, target, ver = self.parse_request_line(rfile)
         logger.debug(f'{method} {target} {ver}')
@@ -63,25 +59,6 @@ class HttpParser:
             body_line = raw.strip('\n')
         return body_line
 
-    # def read_rfile_bytes(self, rfile: io.BufferedReader):
-    #     if not rfile.readable():
-    #         logger.warning(f'Can`t read rfile')
-    #         return
-    #
-    #     req_line = rfile.readline(MAX_LINE + 1)
-    #
-    #     if len(req_line) > MAX_LINE:
-    #         logger.warning(f'Request line is too long from user {self.client_addr}')
-    #     req_line = req_line.decode('iso-8859-1')
-    #     words = req_line.split()
-    #     if len(words) != 3:
-    #         logger.warning(f'Malformed request line from user {self.client_addr}')
-    #
-    #     method, target, ver = words
-    #     if ver != 'HTTP/1.1':
-    #         logger.warning(f'Unexpected HTTP version from user {self.client_addr}')
-    #     return req_line
-
     def parse_headers(self, rfile: str):
         MAX_HEADERS = 100
         headers = []
@@ -106,7 +83,6 @@ class HttpParser:
         req_line = rfile.split('\n')[0]
         if len(req_line) > MAX_LINE:
             logger.warning(f'Request line is too long from user {self.client_addr}')
-        # req_line = str(raw, 'iso-8859-1')
         req_line = req_line.rstrip('\r\n')
         words = req_line.split()
         if len(words) != 3:
@@ -153,7 +129,6 @@ class HttpParser:
                 if file:
                     file.close()
 
-
         self.send_response(Response(400, 'Bad request'))
         logger.warning(f'400 Bad request from user {self.client_addr}')
 
@@ -172,14 +147,6 @@ class HttpParser:
             r += str(response.body).encode('iso-8859-1')
         self.client_socket.sendall(r)
         return r
-
-        # wfile = self.client_socket.makefile('wb')
-        # wfile.write(status_line.encode('iso-8859-1'))
-        # if response.body:
-        #     wfile.write(response.body)
-        #
-        # wfile.flush()
-        # wfile.close()
 
     def send_error(self, error: Response, e=None):
         if e:
