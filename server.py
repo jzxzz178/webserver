@@ -17,10 +17,10 @@ class Server(threading.Thread):
         logger.debug(f'service {service_name} started and handling on {self.host}:{self.port}')
 
     def run(self):
-        global client_addr
         server_socket = socket.socket(socket.AF_INET,
                                       socket.SOCK_STREAM,
                                       proto=0)
+        client_addr = ''
         try:
             server_socket.bind((str(self.host), int(self.port)))
             server_socket.listen()
@@ -33,16 +33,15 @@ class Server(threading.Thread):
                                           args=(client_sock, client_addr),
                                           daemon=False)
                     th.start()
-                    # th.join()
                 except Exception as e:
-                    print(e)
+                    logger.warning(e)
 
         finally:
-            logger.info(f'Client {client_addr} disconnected')
+            logger.warning(f'Client {client_addr or "none_addr"} disconnected')
             server_socket.close()
 
     def serve_client(self, conn: socket, addr):
-        parser = HttpParser(self.service_name, self.port, self.service_path, conn)
+        parser = HttpParser(self.service_name, self.port, self.service_path, conn, addr)
         try:
             logger.debug(f'Started serving client {addr}')
             request = parser.parse_request()

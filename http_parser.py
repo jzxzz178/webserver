@@ -10,20 +10,19 @@ from request import Request
 from response import Response
 
 MAX_LINE = 64 * 1024
-MAX_HEADERS = 100
 
 logger = logging.getLogger('app.http_parser')
 
 
 class HttpParser:
-    def __init__(self, service_name, service_port, service_path, client_socket: socket):
+    def __init__(self, service_name, service_port, service_path, client_socket: socket, client_addr):
         self.service_name = service_name
         self.service_port = service_port
         self.service_path = service_path
         self.client_socket = client_socket
+        self.client_addr = client_addr
 
     def parse_request(self):
-        global MAX_LINE
         rfile = self.client_socket.makefile('rb')
         method, target, ver = self.parse_request_line(rfile)
         logger.debug(f'{method} {target} {ver}')
@@ -31,7 +30,7 @@ class HttpParser:
         host = headers.get('Host')
         logger.debug(f'Host: {host}')
         if not host:
-            raise Exception('Bad request')
+            logger.warning('Bad request')
 
         # if host not in (self.service_name, f'{self.service_name}:{self.service_port}'):
         #     raise Exception('Not found')
@@ -39,12 +38,12 @@ class HttpParser:
         return Request(method, target, ver, headers, rfile)
 
     def parse_headers(self, rfile):
-        global MAX_HEADERS
+        MAX_HEADERS = 100
         headers = []
         while True:
             line = rfile.readline(MAX_LINE + 1)
             if len(line) > MAX_LINE:
-                raise Exception('Header line is too long')
+                logger.warning(f'Header line is too long from user {self.client_addr}')
 
             if line in (b'\r\n', b'\n', b''):
                 # завершаем чтение заголовков
@@ -52,29 +51,29 @@ class HttpParser:
 
             headers.append(line)
             if len(headers) > MAX_HEADERS:
-                raise Exception('Too many headers')
+                logger.warning(f'Too many headers from user {self.client_addr}')
 
         sheaders = b''.join(headers).decode('iso-8859-1')
         return Parser().parsestr(sheaders)
 
     def parse_request_line(self, rfile: io.BufferedReader):
+        global MAX_LINE  # используется в нескольких методах
         raw = rfile.readline(MAX_LINE + 1)
         if len(raw) > MAX_LINE:
-            raise Exception('Request line is too long')
+            logger.warning(f'Request line is too long from user {self.client_addr}')
         req_line = str(raw, 'iso-8859-1')
         req_line = req_line.rstrip('\r\n')
         words = req_line.split()
         if len(words) != 3:
-            raise Exception('Malformed request line')
+            logger.warning(f'Malformed request line from user {self.client_addr}')
 
         method, target, ver = words
         if ver != 'HTTP/1.1':
-            raise Exception('Unexpected HTTP version')
+            logger.warning(f'Unexpected HTTP version from user {self.client_addr}')
 
         return method, target, ver
 
     def handle_request(self, request: Request):
-        global file
         curr_dir = pathlib.Path.cwd()
         path = str(curr_dir).replace('\\', '/') + self.service_path + request.path
         logger.debug(f'Got path: {path}')
@@ -82,11 +81,13 @@ class HttpParser:
         if request.method == 'GET':
             if not os.path.exists(path) or not os.path.isfile(path):
                 (self.send_response(Response(400, 'Bad request')))
+                logger.warning(f'400 Bad request from user {self.client_addr}')
                 return
             file = self.read_bytes_from_file(path)
             r = self.send_response(Response(200, 'OK', body=file))
-
         (self.send_response(Response(400, 'Bad request')))
+        logger.warning(f'400 Bad request from user {self.client_addr}')
+
         # if request.method == 'POST':
         #     if os.path.isfile(path):
         #         (self.send_response(Response(400, 'Bad request', body=b'File with specified name already exists')))
@@ -100,7 +101,6 @@ class HttpParser:
         #         (self.send_error(Response(400, 'Bad request', body=bytes(f'{e}', 'iso-8859-1')), e))
         #     finally:
         #         file.close()
-
 
     def send_response(self, response):
         logger.debug(f'{response.status}: {response.reason}')
@@ -137,6 +137,7 @@ class HttpParser:
             status = 500
             reason = b'Internal Server Error'
             body = b'Internal Server Error'
+            logger.warning(f'Internal server error for user {self.client_addr}')
         finally:
             response = Response(status, reason, [('Content-Length', len(body))], body)
             self.send_response(response)

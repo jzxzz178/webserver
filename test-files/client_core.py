@@ -23,7 +23,7 @@ class Client(threading.Thread):
 
         data = client_socket.recv(1024).decode('iso-8859-1')
         data = data.replace('\r\n\r\n', '\r\n...\r\n...')
-        print(data + '\r\n\r\n')
+        print(data + '\r\n')
 
         client_file.close()
         client_socket.close()
