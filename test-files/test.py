@@ -11,4 +11,5 @@ if __name__ == '__main__':
         client = Client(config[name]['host'],
                         int(config[name]['port']))
         client.start()
+        break
     print()

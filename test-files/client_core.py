@@ -13,16 +13,16 @@ class Client(threading.Thread):
         client_socket.connect((self.server_host, self.server_port))
 
         client_file = client_socket.makefile('rwb', buffering=0, encoding='iso-8859-1')
-        request = b"GET /files/test.txt HTTP/1.1\r\nHost: sourse1.com\r\n\r\n"
+        request = (b"POST /files/test12.txt HTTP/1.1\r\nHost: sourse1.com\nContent-Type: text/html; "
+                   b"charset=utf-8\n\nThis is the body of request!!!.\n\n")
 
+        # client_socket.sendall(request)
         client_file.write(request)
         client_file.flush()
 
-        # client_socket.sendall(request)
-        # data = client_file.read()
-
         data = client_socket.recv(1024).decode('iso-8859-1')
-        data = data.replace('\r\n\r\n', '\r\n...\r\n...')
+        # data = client_file.read()
+        data = data.replace('\r\n\r\n', '\r\n...\r\n...\r\n')
         print(data + '\r\n')
 
         client_file.close()

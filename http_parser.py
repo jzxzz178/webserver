@@ -23,25 +23,70 @@ class HttpParser:
         self.client_addr = client_addr
 
     def parse_request(self):
-        rfile = self.client_socket.makefile('rb')
+        # rfile = self.client_socket.makefile('rb')
+        rfile = self.client_socket.recv(2048).decode('iso-8859-1')
+        # content = self.read_rfile_bytes(rfile).decode('iso-8859-1')
+        # logger.debug(self.client_socket.recv(2048))
+        # logger.debug(self.rfile_to_str(rfile))
+
         method, target, ver = self.parse_request_line(rfile)
         logger.debug(f'{method} {target} {ver}')
+
         headers = self.parse_headers(rfile)
         host = headers.get('Host')
         logger.debug(f'Host: {host}')
         if not host:
             logger.warning('Bad request')
+        hdrs_str = 'Headers are: '
+        for i in range(len(headers.keys())):
+            hdrs_str += f'[{headers.keys()[i]}: {headers.values()[i]}]'
+        logger.debug(hdrs_str)
+        body_idx = rfile.find(headers.values()[-1]) + len(headers.values()[-1])
 
-        # if host not in (self.service_name, f'{self.service_name}:{self.service_port}'):
-        #     raise Exception('Not found')
+        body = self.parse_body(rfile, body_idx)
+        logger.debug(f'Body is: {body}')
 
-        return Request(method, target, ver, headers, rfile)
+        return Request(method, target, ver, headers, body)
 
-    def parse_headers(self, rfile):
+    def rfile_to_str(self, rfile: io.BufferedReader):
+        content = b''
+        for line in rfile:
+            content += line
+            break
+        content = content.decode('iso-8859-1')
+        return content
+
+    def parse_body(self, rfile: str, body_idx: int):
+        raw = rfile[body_idx:]
+        body_line = raw.strip('\n')
+        for i in range(3):
+            body_line = raw.strip('\n')
+        return body_line
+
+    # def read_rfile_bytes(self, rfile: io.BufferedReader):
+    #     if not rfile.readable():
+    #         logger.warning(f'Can`t read rfile')
+    #         return
+    #
+    #     req_line = rfile.readline(MAX_LINE + 1)
+    #
+    #     if len(req_line) > MAX_LINE:
+    #         logger.warning(f'Request line is too long from user {self.client_addr}')
+    #     req_line = req_line.decode('iso-8859-1')
+    #     words = req_line.split()
+    #     if len(words) != 3:
+    #         logger.warning(f'Malformed request line from user {self.client_addr}')
+    #
+    #     method, target, ver = words
+    #     if ver != 'HTTP/1.1':
+    #         logger.warning(f'Unexpected HTTP version from user {self.client_addr}')
+    #     return req_line
+
+    def parse_headers(self, rfile: str):
         MAX_HEADERS = 100
         headers = []
-        while True:
-            line = rfile.readline(MAX_LINE + 1)
+        raw = rfile.split('\n')[1:]
+        for line in raw:
             if len(line) > MAX_LINE:
                 logger.warning(f'Header line is too long from user {self.client_addr}')
 
@@ -49,19 +94,19 @@ class HttpParser:
                 # завершаем чтение заголовков
                 break
 
-            headers.append(line)
+            headers.append(line + '\n')
             if len(headers) > MAX_HEADERS:
                 logger.warning(f'Too many headers from user {self.client_addr}')
 
-        sheaders = b''.join(headers).decode('iso-8859-1')
+        sheaders = ''.join(headers)
         return Parser().parsestr(sheaders)
 
-    def parse_request_line(self, rfile: io.BufferedReader):
+    def parse_request_line(self, rfile: str):
         global MAX_LINE  # используется в нескольких методах
-        raw = rfile.readline(MAX_LINE + 1)
-        if len(raw) > MAX_LINE:
+        req_line = rfile.split('\n')[0]
+        if len(req_line) > MAX_LINE:
             logger.warning(f'Request line is too long from user {self.client_addr}')
-        req_line = str(raw, 'iso-8859-1')
+        # req_line = str(raw, 'iso-8859-1')
         req_line = req_line.rstrip('\r\n')
         words = req_line.split()
         if len(words) != 3:
@@ -80,29 +125,39 @@ class HttpParser:
 
         if request.method == 'GET':
             if not os.path.exists(path) or not os.path.isfile(path):
-                (self.send_response(Response(400, 'Bad request')))
-                logger.warning(f'400 Bad request from user {self.client_addr}')
+                self.send_response(Response(400, 'Bad request'))
+                logger.info(f'400 Bad request from user {self.client_addr}')
                 return
             file = self.read_bytes_from_file(path)
             r = self.send_response(Response(200, 'OK', body=file))
-        (self.send_response(Response(400, 'Bad request')))
+            return
+
+        if request.method == 'POST':
+            if os.path.isfile(path):
+                self.send_response(Response(400, 'Bad request',
+                                            body=f'File with specified name "{request.path}" already exists'))
+                logger.info(f'400 Bad request from user {self.client_addr}')
+                return
+            try:
+                file = open(path, 'w')
+                file.write(request.body)
+                file.close()
+                self.send_response(Response(200, 'OK', body=f'File {request.path} succesfully created'))
+            except Exception as e:
+                # raise e
+                if file:
+                    os.remove(path)
+                self.send_error(Response(400, 'Bad request', body=f'{e}'), e)
+                logger.warning(f'400 Bad request from user {self.client_addr}')
+            finally:
+                if file:
+                    file.close()
+
+
+        self.send_response(Response(400, 'Bad request'))
         logger.warning(f'400 Bad request from user {self.client_addr}')
 
-        # if request.method == 'POST':
-        #     if os.path.isfile(path):
-        #         (self.send_response(Response(400, 'Bad request', body=b'File with specified name already exists')))
-        #         return
-        #     try:
-        #         file = open(path, 'wb')
-        #         file.write(bytes(request.rfile.read()))
-        #         file.close()
-        #         r = self.send_response(Response(200, 'OK', body=file))
-        #     except Exception as e:
-        #         (self.send_error(Response(400, 'Bad request', body=bytes(f'{e}', 'iso-8859-1')), e))
-        #     finally:
-        #         file.close()
-
-    def send_response(self, response):
+    def send_response(self, response: Response):
         logger.debug(f'{response.status}: {response.reason}')
         status_line = bytes(f'HTTP/1.1 {response.status} {response.reason}', 'iso-8859-1')
         r = status_line + b'\r\n'
@@ -114,7 +169,7 @@ class HttpParser:
         hdrs += b'\r\n'
         r += hdrs
         if response.body:
-            r += response.body
+            r += str(response.body).encode('iso-8859-1')
         self.client_socket.sendall(r)
         return r
 

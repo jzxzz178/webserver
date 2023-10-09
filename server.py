@@ -42,13 +42,10 @@ class Server(threading.Thread):
 
     def serve_client(self, conn: socket, addr):
         parser = HttpParser(self.service_name, self.port, self.service_path, conn, addr)
-        try:
-            logger.debug(f'Started serving client {addr}')
-            request = parser.parse_request()
-            resp = parser.handle_request(request)
-            conn.close()
-            logger.debug(f'client {addr} served')
-        except ConnectionResetError:
-            conn.close()
-        except Exception as e:
-            parser.send_error(Response(400, 'Bad request'), e)
+        logger.debug(f'Started serving client {addr}')
+        request = parser.parse_request()
+        parser.handle_request(request)
+        conn.close()
+        logger.debug(f'client {addr} served')
+
+        conn.close()
