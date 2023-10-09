@@ -1,14 +1,13 @@
 import threading
-
-import test_client1
-import test_client2
-import test_client3
+from client_core import Client
+import configparser
 
 if __name__ == '__main__':
-    # t1 = threading.Thread(target=test_client1.go)
-    t2 = threading.Thread(target=test_client2.go)
-#     t3 = threading.Thread(target=test_client3.go)
-
-#     t1.start()
-    t2.start()
-#     t3.start()
+    config = configparser.ConfigParser()
+    config.read('./config.ini')
+    for name in config.sections():
+        print(config[name]['host'], int(config[name]['port']))
+        client = Client(config[name]['host'],
+                        int(config[name]['port']))
+        client.start()
+    print()
