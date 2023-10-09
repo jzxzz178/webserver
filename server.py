@@ -45,7 +45,5 @@ class Server(threading.Thread):
         logger.debug(f'Started serving client {addr}')
         request = parser.parse_request()
         parser.handle_request(request)
-        conn.close()
         logger.debug(f'client {addr} served')
-
         conn.close()
